@@ -554,7 +554,7 @@ footer .wrap{display:grid;gap:8px}
 
         <div class="pane" data-step="3">
           <div class="field"><label for="fName">Your name *</label><input id="fName" name="name" autocomplete="given-name" required><span class="err">Enter your name</span></div>
-          <div class="field"><label for="fPhone">Phone number *</label><input id="fPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required><span class="err">Enter a valid phone number</span></div>
+          <div class="field"><label for="fPhone">Phone number *</label><input id="fPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required><span class="err">Enter a valid phone number, e.g. 0412 345 678</span></div>
           <div class="field"><label for="fSuburb">Your suburb *</label><input id="fSuburb" name="suburb" autocomplete="address-level2" required><span class="err">Enter your suburb</span></div>
           <input type="hidden" name="vehicle"><input type="hidden" name="when">
           <input type="hidden" name="gclid"><input type="hidden" name="gbraid"><input type="hidden" name="wbraid">
@@ -923,7 +923,18 @@ $$('.tiles',form).forEach(function(group){
 $$('[data-back]',form).forEach(function(b){b.addEventListener('click',function(){show(cur==='3'?'2':'1',true)})});
 $$('.field input',form).forEach(function(i){i.addEventListener('focus',begin);i.addEventListener('input',function(){i.parentNode.classList.remove('bad')})});
 
-function validPhone(v){var d=v.replace(/[\s\-()]/g,''); return /^(?:\+?61|0)[2-478]\d{8}$/.test(d)}
+function cleanPhone(v){
+  var raw=String(v||'').trim(), plus=/^\+/.test(raw), d=raw.replace(/\D/g,'');
+  if(d.indexOf('0061')===0) d='61'+d.slice(4);
+  if(d.indexOf('610')===0 && d.length===12) d='61'+d.slice(3);
+  if(d.indexOf('61')===0 && d.length===11) d='0'+d.slice(2);
+  else if(d.length===9 && /^[2-478]/.test(d)) d='0'+d;
+  return {d:d,plus:plus};
+}
+function validPhone(v){
+  var c=cleanPhone(v), d=c.d;
+  return /^0[2-478]\d{8}$/.test(d) || /^1[38]00\d{6}$/.test(d) || /^13\d{4}$/.test(d) || (c.plus && d.indexOf('61')!==0 && /^\d{8,15}$/.test(d));
+}
 form.addEventListener('submit',function(e){
   e.preventDefault();
   var name=form.elements['name'], phone=form.elements['phone'], sub=form.elements['suburb'], ok=true;
@@ -932,6 +943,7 @@ form.addEventListener('submit',function(e){
   });
   if(!ok){track('lp_form_error');return;}
   var payload={}; $$('input',form).forEach(function(i){ if(i.name) payload[i.name]=i.value; });
+  (function(){ var d=cleanPhone(phone.value).d; payload.phone_clean=/^0[2-478]/.test(d)?'+61'+d.slice(1):(cleanPhone(phone.value).plus?'+'+d:d); })();
   var btn=$('#submitBtn'); btn.disabled=true;
   function success(live){
     var ev={vehicle:state.vehicle,timing:state.when,location:rawLoc||'none',lead_mode:live?'live':'prototype'};
